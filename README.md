@@ -34,7 +34,7 @@ Jika gambar yang diinginkan telah dipilih, klik tombol "Proses Gambar".
 
 ### 4.Melihat Hasil:
 
-![Screenshot_3](https://github.com/okkysatria/Dental-Image-Processing/assets/84434840/d789b40d-d45e-494a-942a-00d145feb980)
+![method_sobel](https://github.com/okkysatria/Dental-Image-Processing/assets/84434840/ab86b8c5-f45b-4654-8ecc-3a104ae8b1af)
 
 Gambar yang diproses akan ditampilkan dalam jendela matplotlib, menunjukkan hasil deteksi tepi menggunakan metode yang telah diimplementasikan.
 Hasil juga akan disimpan sebagai file gambar dengan nama method_sobel.jpg di direktori yang sama dengan script.
