@@ -162,7 +162,6 @@ def select_image_and_process():
             index = selection[0]
             image_path = os.path.join(folder_path, listbox.get(index))
             process_image(image_path)
-            root.destroy()
 
     root = Tk()
     root.title("Pilih Gambar untuk Diproses")
