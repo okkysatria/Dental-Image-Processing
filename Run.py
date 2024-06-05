@@ -48,75 +48,87 @@ def hysteresis_thresholding(img, low_threshold, high_threshold):
     return res
 
 def process_image(image_path):
-    # Load the image
+    # Memuat gambar
     image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
 
-    # Check if the image was loaded correctly
+    # Memeriksa apakah gambar berhasil dimuat
     if image is None:
-        print("Error loading image")
+        print(f"Error memuat gambar: {image_path}")
         return
 
-    # Apply Gaussian Blur to reduce noise
+    # Terapkan Gaussian Blur untuk mengurangi noise
     blurred = cv2.GaussianBlur(image, (5, 5), 0)
 
-    # Threshold the image to isolate potential decay regions (dark areas)
-    _, decay_thresholded = cv2.threshold(blurred, 50, 255, cv2.THRESH_BINARY_INV)
-
-    # Threshold the image to segment the teeth (bright areas)
+    # Threshold gambar untuk menyegmentasi gigi (area terang)
     _, teeth_thresholded = cv2.threshold(blurred, 150, 255, cv2.THRESH_BINARY)
 
-    # Use morphological operations to remove small noise and close gaps in the teeth area
+    # Gunakan operasi morfologi untuk menghilangkan noise kecil dan menutup celah di area gigi
     kernel = np.ones((5, 5), np.uint8)
     teeth_segmented = cv2.morphologyEx(teeth_thresholded, cv2.MORPH_CLOSE, kernel)
     teeth_segmented = cv2.morphologyEx(teeth_segmented, cv2.MORPH_OPEN, kernel)
 
-    # Invert the teeth segmented image to create a mask for the teeth area
+    # Inversi gambar segmen gigi untuk membuat masker area gigi
     teeth_mask = cv2.bitwise_not(teeth_segmented)
 
-    # Combine the decay regions with the teeth mask
-    combined_mask = cv2.bitwise_and(decay_thresholded, teeth_mask)
-
-    # Apply the Sobel operator
+    # Terapkan operator Sobel
     sobel_x = cv2.Sobel(blurred, cv2.CV_64F, 1, 0, ksize=3)
     sobel_y = cv2.Sobel(blurred, cv2.CV_64F, 0, 1, ksize=3)
 
-    # Compute the magnitude of the gradient
+    # Hitung magnitudo gradien
     magnitude = cv2.magnitude(sobel_x, sobel_y)
     direction = np.arctan2(sobel_y, sobel_x)
 
-    # Apply Non-Maximum Suppression
+    # Terapkan Non-Maximum Suppression
     nms_result = non_maximum_suppression(magnitude, direction)
 
-    # Apply Hysteresis Thresholding
+    # Terapkan Hysteresis Thresholding
     hysteresis_result = hysteresis_thresholding(nms_result, low_threshold=50, high_threshold=100)
 
-    # Normalize the magnitude image to the range [0, 255]
+    # Normalisasi gambar magnitudo ke rentang [0, 255]
     magnitude = cv2.normalize(hysteresis_result, None, 0, 255, cv2.NORM_MINMAX)
 
-    # Convert to uint8 (8-bit)
+    # Konversi ke uint8 (8-bit)
     magnitude = np.uint8(magnitude)
 
-    # Mask the Sobel result with the combined mask to focus on potential decay regions within teeth
-    masked_edges = cv2.bitwise_and(magnitude, magnitude, mask=combined_mask)
+    # Masker hasil Sobel dengan masker gigi untuk fokus pada potensi area kerusakan dalam gigi
+    masked_edges = cv2.bitwise_and(magnitude, magnitude, mask=teeth_mask)
 
-    # Display the original, thresholded, and edge-detected images
+    # Threshold gambar untuk mengisolasi potensi area kerusakan (area gelap)
+    _, decay_thresholded = cv2.threshold(blurred, 50, 255, cv2.THRESH_BINARY_INV)
+    decay_masked = cv2.bitwise_and(decay_thresholded, decay_thresholded, mask=teeth_mask)
+
+    # Temukan kontur dari area kerusakan
+    contours, _ = cv2.findContours(decay_masked, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # Buat gambar output untuk menggambar kontur
+    output_image = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+
+    # Gambar kontur dengan garis merah
+    cv2.drawContours(output_image, contours, -1, (255, 0, 0), 2)
+
+    # Tambahkan teks "Lubang" pada gambar output
+    for cnt in contours:
+        x, y, w, h = cv2.boundingRect(cnt)
+        cv2.putText(output_image, 'Lubang', (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+
+    # Tampilkan gambar asli, thresholded, dan hasil deteksi tepi
     plt.figure(figsize=(20, 5))
 
     plt.subplot(1, 4, 1)
-    plt.title("Original Image")
+    plt.title("Gambar Asli")
     plt.imshow(image, cmap='gray')
 
     plt.subplot(1, 4, 2)
-    plt.title("Thresholded Decay Regions")
-    plt.imshow(decay_thresholded, cmap='gray')
-
-    plt.subplot(1, 4, 3)
-    plt.title("Teeth Segmentation")
+    plt.title("Segmentasi Gigi")
     plt.imshow(teeth_segmented, cmap='gray')
 
+    plt.subplot(1, 4, 3)
+    plt.title("Wilayah Kerusakan yang di-Threshold")
+    plt.imshow(decay_thresholded, cmap='gray')
+
     plt.subplot(1, 4, 4)
-    plt.title("Edges on Decay Regions within Teeth")
-    plt.imshow(masked_edges, cmap='gray')
+    plt.title("Wilayah Kerusakan dengan Garis Merah")
+    plt.imshow(output_image)
 
     plt.tight_layout()
     plt.savefig('method_sobel.jpg')
